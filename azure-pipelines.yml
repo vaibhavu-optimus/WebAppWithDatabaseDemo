@@ -1,45 +1,50 @@
-# ASP.NET Core (.NET Framework)
-# Build and test ASP.NET Core projects targeting the full .NET Framework.
-# Add steps that publish symbols, save build artifacts, and more:
-# https://docs.microsoft.com/azure/devops/pipelines/languages/dotnet-core
-
 trigger:
-- master
+- main  # Runs when code is pushed to 'main'
 
 pool:
-  vmImage: 'windows-2022'
+  vmImage: 'windows-2022'  # Uses Windows agent
 
 variables:
-  solution: '**/*.sln'
-  buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
+  dotnetVersion: '6.0.x'
+  artifactName: 'drop'
 
 steps:
-# - task: PowerShell@2
-#   displayName: 'Install .NET Framework 4.5 Developer Pack'
-#   inputs:
-#     targetType: 'inline'
-#     script: |
-#       $url = "https://download.microsoft.com/download/1/9/2/1924CE03-ABED-4720-89D9-68D5B0F2A504/NDP45-DevPack-KB2887069-ENU.exe"
-#       $output = "C:\DevPack.exe"
-#       Invoke-WebRequest -Uri $url -OutFile $output
-#       Start-Process -FilePath $output -ArgumentList "/quiet", "/norestart" -Wait
-#       Remove-Item -Path $output
-
-- task: NuGetToolInstaller@1
+- task: UseDotNet@2
+  displayName: 'Install .NET SDK'
+  inputs:
+    packageType: 'sdk'
+    version: '$(dotnetVersion)'
 
 - task: NuGetCommand@2
+  displayName: 'Restore NuGet Packages'
   inputs:
-    restoreSolution: '$(solution)'
+    restoreSolution: '**/*.sln'  
 
 - task: VSBuild@1
+  displayName: 'Build Solution'
   inputs:
-    solution: '$(solution)'
-    msbuildArgs: '/p:DeployOnBuild=true /p:WebPublishMethod=Package /p:PackageAsSingleFile=true /p:SkipInvalidConfigurations=true /p:DesktopBuildPackageLocation="$(build.artifactStagingDirectory)\WebApp.zip" /p:DeployIisAppPath="Default Web Site"'
-    platform: '$(buildPlatform)'
+    solution: '**/*.sln'
+    platform: 'Any CPU'
     configuration: '$(buildConfiguration)'
 
 - task: VSTest@2
+  displayName: 'Run Tests'
   inputs:
-    platform: '$(buildPlatform)'
+    platform: 'Any CPU'
     configuration: '$(buildConfiguration)'
+
+# - task: DotNetCoreCLI@2
+#   displayName: 'Publish Application'
+#   inputs:
+#     command: 'publish'
+#     publishWebProjects: true
+#     arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+#     zipAfterPublish: true
+
+# - task: PublishBuildArtifacts@1
+#   displayName: 'Save Build Artifacts'
+#   inputs:
+#     pathToPublish: '$(Build.ArtifactStagingDirectory)'
+#     artifactName: '$(artifactName)'
+
