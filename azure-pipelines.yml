@@ -7,7 +7,7 @@ trigger:
 - master
 
 pool:
-  vmImage: 'windows-latest'
+  vmImage: 'windows-2019'
 
 variables:
   solution: '**/*.sln'
@@ -15,6 +15,17 @@ variables:
   buildConfiguration: 'Release'
 
 steps:
+- task: PowerShell@2
+  displayName: 'Install .NET Framework 4.5 Developer Pack'
+  inputs:
+    targetType: 'inline'
+    script: |
+      $url = "https://download.microsoft.com/download/1/9/2/1924CE03-ABED-4720-89D9-68D5B0F2A504/NDP45-DevPack-KB2887069-ENU.exe"
+      $output = "C:\DevPack.exe"
+      Invoke-WebRequest -Uri $url -OutFile $output
+      Start-Process -FilePath $output -ArgumentList "/quiet", "/norestart" -Wait
+      Remove-Item -Path $output
+
 - task: NuGetToolInstaller@1
 
 - task: NuGetCommand@2
