@@ -2,7 +2,7 @@ trigger:
 - main  # Runs when code is pushed to 'main'
 
 pool:
-  vmImage: 'windows-2016'  # Uses Windows agent
+  vmImage: 'windows-2016'  # ✅ Use Windows-2016 (Has .NET 4.5 preinstalled)
 
 variables:
   buildConfiguration: 'Release'
@@ -10,41 +10,66 @@ variables:
   artifactName: 'drop'
 
 steps:
+# Install .NET SDK
 - task: UseDotNet@2
   displayName: 'Install .NET SDK'
   inputs:
     packageType: 'sdk'
     version: '$(dotnetVersion)'
 
-- task: NuGetCommand@2
-  displayName: 'Restore NuGet Packages'
+# Install .NET 4.5 Developer Pack (If not using Windows-2016)
+- task: PowerShell@2
+  displayName: 'Install .NET Framework 4.5 Developer Pack'
+  condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT')) # Runs only on Windows
   inputs:
-    restoreSolution: '**/*.sln'  
+    targetType: 'inline'
+    script: |
+      $url = "https://go.microsoft.com/fwlink/?LinkId=324516"
+      $output = "C:\DevPack.exe"
+      Invoke-WebRequest -Uri $url -OutFile $output
+      Start-Process -FilePath $output -ArgumentList "/quiet", "/norestart" -Wait
+      Remove-Item -Path $output
 
+# Set correct reference path for .NET 4.5
+- script: |
+    SET FrameworkPathOverride=C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5
+  displayName: 'Set Framework Path Override'
+
+# Restore .NET Packages
+- task: DotNetCoreCLI@2
+  displayName: 'Restore .NET Packages'
+  inputs:
+    command: 'restore'
+    projects: '**/*.sln'
+
+# Build Solution using an older MSBuild version
 - task: VSBuild@1
   displayName: 'Build Solution'
   inputs:
     solution: '**/*.sln'
+    msbuildArgs: '/p:VisualStudioVersion=15.0'  # ✅ Force MSBuild to use VS2017
     platform: 'Any CPU'
     configuration: '$(buildConfiguration)'
 
+# Run Tests
 - task: VSTest@2
   displayName: 'Run Tests'
   inputs:
     platform: 'Any CPU'
     configuration: '$(buildConfiguration)'
 
-# - task: DotNetCoreCLI@2
-#   displayName: 'Publish Application'
-#   inputs:
-#     command: 'publish'
-#     publishWebProjects: true
-#     arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
-#     zipAfterPublish: true
+# **🔹 Publish Application**
+- task: DotNetCoreCLI@2
+  displayName: 'Publish Application'
+  inputs:
+    command: 'publish'
+    publishWebProjects: true
+    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
+    zipAfterPublish: true
 
-# - task: PublishBuildArtifacts@1
-#   displayName: 'Save Build Artifacts'
-#   inputs:
-#     pathToPublish: '$(Build.ArtifactStagingDirectory)'
-#     artifactName: '$(artifactName)'
-
+# **🔹 Save Build Artifacts**
+- task: PublishBuildArtifacts@1
+  displayName: 'Save Build Artifacts'
+  inputs:
+    pathToPublish: '$(Build.ArtifactStagingDirectory)'
+    artifactName: '$(artifactName)'
