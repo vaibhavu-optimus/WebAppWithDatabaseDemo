@@ -2,24 +2,34 @@ trigger:
 - main  # Runs when code is pushed to 'main'
 
 pool:
-  vmImage: 'windows-2019'  # ✅ Use Windows-2019 (Still supported)
+  vmImage: 'windows-2019'  # ✅ Use Windows-2019 (Supports older .NET versions)
 
 variables:
   buildConfiguration: 'Release'
   artifactName: 'drop'
 
 steps:
-# **🔹 Install .NET Framework 4.5 Developer Pack**
+# **🔹 Install .NET Framework 4.5 Developer Pack Safely**
 - task: PowerShell@2
   displayName: 'Install .NET Framework 4.5 Developer Pack'
   inputs:
     targetType: 'inline'
     script: |
-      $url = "https://go.microsoft.com/fwlink/?LinkId=324516"
+      $url = "https://download.microsoft.com/download/1/9/2/1924CE03-ABED-4720-89D9-68D5B0F2A504/NDP45-DevPack-KB2887069-ENU.exe"
       $output = "C:\DevPack.exe"
+
+      # Download .NET 4.5 Developer Pack
       Invoke-WebRequest -Uri $url -OutFile $output
-      Start-Process -FilePath $output -ArgumentList "/quiet", "/norestart" -Wait
-      Remove-Item -Path $output
+
+      # Verify the file was downloaded correctly
+      if (Test-Path $output) {
+          Write-Host "File downloaded successfully. Installing..."
+          Start-Process -FilePath $output -ArgumentList "/quiet", "/norestart" -Wait
+          Remove-Item -Path $output
+      } else {
+          Write-Host "Failed to download .NET 4.5 Developer Pack."
+          exit 1
+      }
 
 # **🔹 Restore NuGet Packages**
 - task: DotNetCoreCLI@2
