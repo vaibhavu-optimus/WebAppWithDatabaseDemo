@@ -4,10 +4,11 @@ trigger:
 pool:
   vmImage: 'windows-2019'
 
-variables:
-  BuildConfiguration: 'Release'
-  BuildPlatform: 'any cpu'
+# variables:
+#   BuildConfiguration: 'Release'
+#   BuildPlatform: 'any cpu'
 
+steps:
 # 🔹 Step 1: Restore Dependencies (excluding SeleniumUnitTest.csproj)
 - task: PowerShell@2
   displayName: 'Restore Dependencies'
