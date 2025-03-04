@@ -2,7 +2,7 @@ trigger:
 - main  # Runs when code is pushed to 'main'
 
 pool:
-  vmImage: 'windows-2022'  # Uses Windows agent
+  vmImage: 'windows-2016'  # Uses Windows agent
 
 variables:
   buildConfiguration: 'Release'
