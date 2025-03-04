@@ -1,71 +1,18 @@
 trigger:
-- main  # Runs when code is pushed to 'main'
+- main  # Adjust as per your branch name
 
 pool:
-  vmImage: 'windows-2019'  # ✅ Use Windows-2019 (Supports older .NET versions)
-
-variables:
-  buildConfiguration: 'Release'
-  artifactName: 'drop'
+  vmImage: 'ubuntu-latest'
 
 steps:
-# **🔹 Install .NET Framework 4.5 Developer Pack Safely**
-- task: PowerShell@2
-  displayName: 'Install .NET Framework 4.5 Developer Pack'
+- task: UseDotNet@2
   inputs:
-    targetType: 'inline'
-    script: |
-      $url = "https://download.microsoft.com/download/1/9/2/1924CE03-ABED-4720-89D9-68D5B0F2A504/NDP45-DevPack-KB2887069-ENU.exe"
-      $output = "C:\DevPack.exe"
+    packageType: 'sdk'
+    version: '6.0.x'  # Ensures the latest patch version of .NET 6
+    installationPath: $(Agent.ToolsDirectory)/dotnet
 
-      # Download .NET 4.5 Developer Pack
-      Invoke-WebRequest -Uri $url -OutFile $output
+- script: dotnet build WebApp/WebApp.csproj --configuration Release
+  displayName: 'Build WebApp'
 
-      # Verify the file was downloaded correctly
-      if (Test-Path $output) {
-          Write-Host "File downloaded successfully. Installing..."
-          Start-Process -FilePath $output -ArgumentList "/quiet", "/norestart" -Wait
-          Remove-Item -Path $output
-      } else {
-          Write-Host "Failed to download .NET 4.5 Developer Pack."
-          exit 1
-      }
-
-# **🔹 Restore NuGet Packages**
-- task: DotNetCoreCLI@2
-  displayName: 'Restore .NET Packages'
-  inputs:
-    command: 'restore'
-    projects: '**/*.sln'
-
-# **🔹 Build Solution (Forces MSBuild to Use VS2017)**
-- task: VSBuild@1
-  displayName: 'Build Solution'
-  inputs:
-    solution: '**/*.sln'
-    msbuildArgs: '/p:VisualStudioVersion=15.0'  # ✅ Forces MSBuild to use VS2017 (Compatible with .NET 4.5)
-    platform: 'Any CPU'
-    configuration: '$(buildConfiguration)'
-
-# **🔹 Run Tests**
-- task: VSTest@2
-  displayName: 'Run Tests'
-  inputs:
-    platform: 'Any CPU'
-    configuration: '$(buildConfiguration)'
-
-# **🔹 Publish Application**
-- task: DotNetCoreCLI@2
-  displayName: 'Publish Application'
-  inputs:
-    command: 'publish'
-    publishWebProjects: true
-    arguments: '--configuration $(buildConfiguration) --output $(Build.ArtifactStagingDirectory)'
-    zipAfterPublish: true
-
-# **🔹 Save Build Artifacts**
-- task: PublishBuildArtifacts@1
-  displayName: 'Save Build Artifacts'
-  inputs:
-    pathToPublish: '$(Build.ArtifactStagingDirectory)'
-    artifactName: '$(artifactName)'
+- script: dotnet test WebApp.UnitTest/WebApp.UnitTest.csproj --configuration Release
+  displayName: 'Run Unit Tests'
