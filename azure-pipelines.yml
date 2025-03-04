@@ -6,52 +6,26 @@ pool:
 
 variables:
   buildConfiguration: 'Release'
-  dotnetVersion: '6.0.x'
   artifactName: 'drop'
 
 steps:
-# Install .NET SDK
-- task: UseDotNet@2
-  displayName: 'Install .NET SDK'
-  inputs:
-    packageType: 'sdk'
-    version: '$(dotnetVersion)'
-
-# Install .NET 4.5 Developer Pack (If not using Windows-2016)
-- task: PowerShell@2
-  displayName: 'Install .NET Framework 4.5 Developer Pack'
-  condition: and(succeeded(), eq(variables['Agent.OS'], 'Windows_NT')) # Runs only on Windows
-  inputs:
-    targetType: 'inline'
-    script: |
-      $url = "https://go.microsoft.com/fwlink/?LinkId=324516"
-      $output = "C:\DevPack.exe"
-      Invoke-WebRequest -Uri $url -OutFile $output
-      Start-Process -FilePath $output -ArgumentList "/quiet", "/norestart" -Wait
-      Remove-Item -Path $output
-
-# Set correct reference path for .NET 4.5
-- script: |
-    SET FrameworkPathOverride=C:\Program Files (x86)\Reference Assemblies\Microsoft\Framework\.NETFramework\v4.5
-  displayName: 'Set Framework Path Override'
-
-# Restore .NET Packages
+# **🔹 Restore NuGet Packages**
 - task: DotNetCoreCLI@2
   displayName: 'Restore .NET Packages'
   inputs:
     command: 'restore'
     projects: '**/*.sln'
 
-# Build Solution using an older MSBuild version
+# **🔹 Build Solution (Forces MSBuild to Use VS2017)**
 - task: VSBuild@1
   displayName: 'Build Solution'
   inputs:
     solution: '**/*.sln'
-    msbuildArgs: '/p:VisualStudioVersion=15.0'  # ✅ Force MSBuild to use VS2017
+    msbuildArgs: '/p:VisualStudioVersion=15.0'  # ✅ Forces MSBuild to use VS2017 (Compatible with .NET 4.5)
     platform: 'Any CPU'
     configuration: '$(buildConfiguration)'
 
-# Run Tests
+# **🔹 Run Tests**
 - task: VSTest@2
   displayName: 'Run Tests'
   inputs:
