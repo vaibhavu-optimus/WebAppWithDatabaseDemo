@@ -2,13 +2,25 @@ trigger:
 - main  # Runs when code is pushed to 'main'
 
 pool:
-  vmImage: 'windows-2016'  # ✅ Use Windows-2016 (Has .NET 4.5 preinstalled)
+  vmImage: 'windows-2019'  # ✅ Use Windows-2019 (Still supported)
 
 variables:
   buildConfiguration: 'Release'
   artifactName: 'drop'
 
 steps:
+# **🔹 Install .NET Framework 4.5 Developer Pack**
+- task: PowerShell@2
+  displayName: 'Install .NET Framework 4.5 Developer Pack'
+  inputs:
+    targetType: 'inline'
+    script: |
+      $url = "https://go.microsoft.com/fwlink/?LinkId=324516"
+      $output = "C:\DevPack.exe"
+      Invoke-WebRequest -Uri $url -OutFile $output
+      Start-Process -FilePath $output -ArgumentList "/quiet", "/norestart" -Wait
+      Remove-Item -Path $output
+
 # **🔹 Restore NuGet Packages**
 - task: DotNetCoreCLI@2
   displayName: 'Restore .NET Packages'
