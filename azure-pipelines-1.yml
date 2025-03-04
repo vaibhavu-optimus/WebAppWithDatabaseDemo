@@ -1,0 +1,47 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'windows-2019'
+
+steps:
+- task: NuGetCommand@2
+  displayName: 'Restore NuGet Packages'
+  inputs:
+    command: 'restore'
+    feedsToUse: 'select'
+
+- script: |
+    Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+        dotnet restore $_.FullName
+    }
+  displayName: 'Restore Dependencies for Each Project'
+
+- script: |
+    Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+        dotnet build $_.FullName --configuration $(BuildConfiguration) --no-restore
+    }
+  displayName: 'Build Projects (Excluding SeleniumUnitTest.csproj)'
+
+- script: dotnet test **/*[Tt]est.csproj --configuration $(BuildConfiguration) --no-build --logger trx
+  displayName: 'Run Unit Tests'
+
+- task: PublishTestResults@2
+  displayName: 'Publish Test Results'
+  inputs:
+    testResultsFormat: 'VSTest'
+    testResultsFiles: '**/*.trx'
+    mergeTestResults: true
+  condition: succeededOrFailed()
+
+- script: |
+    Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+        dotnet publish $_.FullName --configuration $(BuildConfiguration) --output $(build.artifactstagingdirectory) --no-build
+    }
+  displayName: 'Publish Projects (Excluding SeleniumUnitTest.csproj)'
+
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Build Artifacts'
+  inputs:
+    pathToPublish: '$(build.artifactstagingdirectory)'
+    artifactName: 'drop'
