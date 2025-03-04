@@ -1,0 +1,60 @@
+trigger:
+- main
+
+pool:
+  vmImage: 'windows-2019'
+
+variables:
+  BuildConfiguration: 'Release'
+  BuildPlatform: 'any cpu'
+
+# 🔹 Step 1: Restore Dependencies (excluding SeleniumUnitTest.csproj)
+- task: PowerShell@2
+  displayName: 'Restore Dependencies'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+          Write-Host "Restoring: $($_.FullName)"
+          dotnet restore $_.FullName
+      }
+
+# 🔹 Step 2: Build Projects (excluding SeleniumUnitTest.csproj)
+- task: PowerShell@2
+  displayName: 'Build Projects'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+          Write-Host "Building: $($_.FullName)"
+          dotnet build $_.FullName --configuration $(BuildConfiguration)
+      }
+
+# 🔹 Step 3: Run Tests (only on test projects, excluding SeleniumUnitTest.csproj)
+- task: PowerShell@2
+  displayName: 'Run Unit Tests'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Get-ChildItem -Path **/*[Tt]est.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+          Write-Host "Running Tests: $($_.FullName)"
+          dotnet test $_.FullName --configuration $(BuildConfiguration) --no-build --verbosity normal
+      }
+
+# 🔹 Step 4: Publish Projects (excluding SeleniumUnitTest.csproj)
+- task: PowerShell@2
+  displayName: 'Publish Projects'
+  inputs:
+    targetType: 'inline'
+    script: |
+      Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+          Write-Host "Publishing: $($_.FullName)"
+          dotnet publish $_.FullName --configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)
+      }
+
+# 🔹 Step 5: Publish Artifacts
+- task: PublishBuildArtifacts@1
+  displayName: 'Publish Artifacts'
+  inputs:
+    pathToPublish: '$(Build.ArtifactStagingDirectory)'
+    artifactName: 'drop'
