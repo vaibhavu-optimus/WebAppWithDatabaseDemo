@@ -4,44 +4,47 @@ trigger:
 pool:
   vmImage: 'windows-2019'
 
-steps:
-- task: NuGetCommand@2
-  displayName: 'Restore NuGet Packages'
-  inputs:
-    command: 'restore'
-    feedsToUse: 'select'
+variables:
+  BuildConfiguration: 'Release'
+  BuildPlatform: 'any cpu'
 
-- script: |
+steps:
+- task: UseDotNet@2
+  displayName: 'Use .NET SDK'
+  inputs:
+    packageType: 'sdk'
+    installationPath: $(Agent.ToolsDirectory)/dotnet
+
+- powershell: |
     Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+        Write-Host "Restoring: $($_.FullName)"
         dotnet restore $_.FullName
     }
   displayName: 'Restore Dependencies for Each Project'
 
-- script: |
+- powershell: |
     Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
-        dotnet build $_.FullName --configuration $(BuildConfiguration) --no-restore
+        Write-Host "Building: $($_.FullName)"
+        dotnet build $_.FullName --configuration $(BuildConfiguration)
     }
-  displayName: 'Build Projects (Excluding SeleniumUnitTest.csproj)'
+  displayName: 'Build Projects'
 
-- script: dotnet test **/*[Tt]est.csproj --configuration $(BuildConfiguration) --no-build --logger trx
+- powershell: |
+    Get-ChildItem -Path **/*[Tt]est.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+        Write-Host "Running Tests: $($_.FullName)"
+        dotnet test $_.FullName --configuration $(BuildConfiguration) --no-build --verbosity normal
+    }
   displayName: 'Run Unit Tests'
 
-- task: PublishTestResults@2
-  displayName: 'Publish Test Results'
-  inputs:
-    testResultsFormat: 'VSTest'
-    testResultsFiles: '**/*.trx'
-    mergeTestResults: true
-  condition: succeededOrFailed()
-
-- script: |
+- powershell: |
     Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
-        dotnet publish $_.FullName --configuration $(BuildConfiguration) --output $(build.artifactstagingdirectory) --no-build
+        Write-Host "Publishing: $($_.FullName)"
+        dotnet publish $_.FullName --configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)
     }
-  displayName: 'Publish Projects (Excluding SeleniumUnitTest.csproj)'
+  displayName: 'Publish Projects'
 
 - task: PublishBuildArtifacts@1
-  displayName: 'Publish Build Artifacts'
+  displayName: 'Publish Artifacts'
   inputs:
-    pathToPublish: '$(build.artifactstagingdirectory)'
+    pathToPublish: '$(Build.ArtifactStagingDirectory)'
     artifactName: 'drop'
