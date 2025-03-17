@@ -6,56 +6,43 @@ pool:
 
 variables:
   BuildConfiguration: 'Release'
-  BuildPlatform: 'any cpu'
 
 steps:
-# 🔹 Step 1: Restore Dependencies (excluding SeleniumUnitTest.csproj)
-- task: PowerShell@2
-  displayName: 'Restore Dependencies'
+# Step 1: Find the WebApp.csproj and restore dependencies
+- task: DotNetCoreCLI@2
+  displayName: 'Restore WebApp.csproj Dependencies'
   inputs:
-    targetType: 'inline'
-    script: |
-      Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
-          Write-Host "Restoring: $($_.FullName)"
-          dotnet restore $_.FullName
-      }
+    command: 'restore'
+    projects: '**/WebApp.csproj'
 
-# 🔹 Step 2: Build Projects (excluding SeleniumUnitTest.csproj)
-- task: PowerShell@2
-  displayName: 'Build Projects'
+# Step 2: Build WebApp.csproj
+- task: DotNetCoreCLI@2
+  displayName: 'Build WebApp.csproj'
   inputs:
-    targetType: 'inline'
-    script: |
-      Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
-          Write-Host "Building: $($_.FullName)"
-          dotnet build $_.FullName --configuration $(BuildConfiguration)
-      }
+    command: 'build'
+    projects: '**/WebApp.csproj'
+    arguments: '--configuration $(BuildConfiguration)'
 
-# 🔹 Step 3: Run Tests (only on test projects, excluding SeleniumUnitTest.csproj)
-- task: PowerShell@2
-  displayName: 'Run Unit Tests'
+# Step 3: Publish WebApp.csproj
+- task: DotNetCoreCLI@2
+  displayName: 'Publish WebApp.csproj'
   inputs:
-    targetType: 'inline'
-    script: |
-      Get-ChildItem -Path **/*[Tt]est.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
-          Write-Host "Running Tests: $($_.FullName)"
-          dotnet test $_.FullName --configuration $(BuildConfiguration) --no-build --verbosity normal
-      }
+    command: 'publish'
+    projects: '**/WebApp.csproj'
+    arguments: '--configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)'
 
-# 🔹 Step 4: Publish Projects (excluding SeleniumUnitTest.csproj)
-- task: PowerShell@2
-  displayName: 'Publish Projects'
+# Step 4: Zip the Published Files
+- task: ArchiveFiles@2
+  displayName: 'Zip Published WebApp Files'
   inputs:
-    targetType: 'inline'
-    script: |
-      Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -match "WebApp.csproj" } | ForEach-Object {
-          Write-Host "Publishing: $($_.FullName)"
-          dotnet publish $_.FullName --configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)
-      }
+    rootFolderOrFile: '$(Build.ArtifactStagingDirectory)'
+    includeRootFolder: false
+    archiveFile: '$(Build.ArtifactStagingDirectory)/drop.zip'
 
-# 🔹 Step 5: Publish Artifacts
+# Step 5: Publish the Artifact
 - task: PublishBuildArtifacts@1
-  displayName: 'Publish Artifacts'
+  displayName: 'Publish Artifact'
   inputs:
-    pathToPublish: '$(Build.ArtifactStagingDirectory)'
+    pathToPublish: '$(Build.ArtifactStagingDirectory)/drop.zip'
     artifactName: 'drop'
+    publishLocation: 'Container'
