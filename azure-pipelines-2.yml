@@ -4,9 +4,9 @@ trigger:
 pool:
   vmImage: 'windows-2019'
 
-# variables:
-#   BuildConfiguration: 'Release'
-#   BuildPlatform: 'any cpu'
+variables:
+  BuildConfiguration: 'Release'
+  BuildPlatform: 'any cpu'
 
 steps:
 # 🔹 Step 1: Restore Dependencies (excluding SeleniumUnitTest.csproj)
@@ -48,7 +48,7 @@ steps:
   inputs:
     targetType: 'inline'
     script: |
-      Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -notmatch "SeleniumUnitTest.csproj" } | ForEach-Object {
+      Get-ChildItem -Path **/*.csproj -Recurse | Where-Object { $_.Name -match "WebApp.csproj" } | ForEach-Object {
           Write-Host "Publishing: $($_.FullName)"
           dotnet publish $_.FullName --configuration $(BuildConfiguration) --output $(Build.ArtifactStagingDirectory)
       }
